@@ -70,11 +70,12 @@ def get_cpe(entry):
     try:
         vsl = entry.getElementsByTagName('vuln:vulnerable-software-list')[0].childNodes
         cve = entry.getElementsByTagName('vuln:cve-id')[0].childNodes[0].toxml().split('-')
+        cvss = entry.getElementsByTagName('vuln:cvss')[0].childNodes[1].childNodes[1].childNodes[0].toxml()
         out = []
         for item in vsl:
             if item.nodeType != item.TEXT_NODE:
                 cpe = json.dumps(parse_cpe_uri(item.childNodes[0].toxml())).replace('"',"'")
-                out.append(', '.join(['"'+cpe+'"']+cve))
+                out.append(', '.join(['"'+cpe+'"', cvss]+cve))
         return out
     except Exception as e:
         pass
@@ -84,5 +85,5 @@ if __name__ == "__main__":
     for entry in entries:
         cpe = get_cpe(entry)
         output.append('\n'.join(cpe if cpe != None else ['']))
-    open('{}.csv'.format(sys.argv[1]),'w').write('\n'.join(['cpe,cve,year,index']+output))
+    open('{}.csv'.format(sys.argv[1]),'w').write('\n'.join(['cpe,cvss,cve,year,index']+output))
 
