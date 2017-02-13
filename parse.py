@@ -1,11 +1,14 @@
-from xml.dom.minidom import parse,parseString
+from xml.etree.ElementTree import parse,tostring
 import sys,json
 
-xml = parse('nvdcve-2.0-{}.xml'.format(sys.argv[1]))
-
+xml = parse('nvdcve-2.0-{}.xml'.format(sys.argv[1])).getroot()
+ns = {
+        'cvss': 'http://scap.nist.gov/schema/cvss-v2/0.2',
+        'vuln': 'http://scap.nist.gov/schema/vulnerability/0.4'
+    }
 def handle_entries():
     out = []
-    for entry in xml.getElementsByTagName('entry'):
+    for entry in xml:
         out.append(entry)
     return out
 
@@ -68,22 +71,22 @@ def parse_cpe_uri(uri):
 
 def get_cpe(entry):
     try:
-        vsl = entry.getElementsByTagName('vuln:vulnerable-software-list')[0].childNodes
-        cve = entry.getElementsByTagName('vuln:cve-id')[0].childNodes[0].toxml().split('-')
-        cvss = entry.getElementsByTagName('vuln:cvss')[0].childNodes[1].childNodes[1].childNodes[0].toxml()
+        vsl = entry.find('vuln:vulnerable-software-list',ns)
+        cve = entry.find('vuln:cve-id',ns).text.split('-')
+        cvss = entry.find('vuln:cvss/cvss:base_metrics/cvss:score',ns).text
         out = []
-        for item in vsl:
-            if item.nodeType != item.TEXT_NODE:
-                cpe = json.dumps(parse_cpe_uri(item.childNodes[0].toxml())).replace('"',"'")
-                out.append(', '.join(['"'+cpe+'"', cvss]+cve))
+        for item in vsl.iterfind('vuln:product',ns):
+           cpe = json.dumps(parse_cpe_uri(item.text)).replace('"',"'")
+           out.append(', '.join(['"'+cpe+'"',cvss]+cve))
         return out
-    except Exception as e:
+    except:
         pass
 if __name__ == "__main__":
     entries = handle_entries()
     output = []
     for entry in entries:
         cpe = get_cpe(entry)
-        output.append('\n'.join(cpe if cpe != None else ['']))
+        if cpe != None:
+            output.append('\n'.join(cpe))
     open('{}.csv'.format(sys.argv[1]),'w').write('\n'.join(['cpe,cvss,cve,year,index']+output))
 
